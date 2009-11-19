@@ -1,4 +1,7 @@
 from django.db.models.query import QuerySet
+from django.db import models
+
+from django.conf import settings
 
 def batch_select(model, instances, target_field_name, m2m_fieldname):
     '''
@@ -14,7 +17,7 @@ def batch_select(model, instances, target_field_name, m2m_fieldname):
     containing the tags for that Entry
     '''
     
-    m2m_field = getattr(model, m2m_fieldname)
+    m2m_field = getattr(model, m2m_fieldname).field
     m2m_model = m2m_field.rel.to # model on other end of relationship
     related_name = m2m_field.related_query_name()
     id_column = m2m_field.m2m_column_name()
@@ -22,7 +25,7 @@ def batch_select(model, instances, target_field_name, m2m_fieldname):
     
     instances = list(instances)
     
-    ids = [r.id for r in results]
+    ids = [instance.id for instance in instances]
     
     id__in_filter={ ('%s__in' % related_name): ids }
     select = { id_column: '`%s`.`%s`' % (db_table, id_column) }
@@ -36,7 +39,7 @@ def batch_select(model, instances, target_field_name, m2m_fieldname):
         instance_id = getattr(m2m_instance, id_column)
         group = grouped.get(instance_id, [])
         group.append(m2m_instance)
-        group[instance_id] = group
+        grouped[instance_id] = group
     
     for instance in instances:
         setattr(instance, target_field_name, grouped.get(instance.id,[]))
@@ -65,8 +68,25 @@ class BatchQuerySet(QuerySet):
         batches = getattr(self, '_batches', None)
         if batches:
             results = list(result_iter)
-            for target_field_name, m2m_fieldname in batches:
+            for target_field_name, m2m_fieldname in set(batches):
                 results = batch_select(self.model, results, target_field_name, m2m_fieldname)
                 batches.remove((target_field_name, m2m_fieldname))
             return iter(results)
         return result_iter
+
+class BatchManager(models.Manager):
+    def get_query_set(self):
+        return BatchQuerySet(self.model)
+    
+    def batch_select(self, **field_names):
+        return self.all().batch_select(**field_names)
+
+if getattr(settings, 'TESTING_BATCH_SELECT', False):
+    class Tag(models.Model):
+        name = models.CharField(max_length=32)
+    
+    class Entry(models.Model):
+        tags = models.ManyToManyField(Tag)
+        
+        objects = BatchManager()
+        

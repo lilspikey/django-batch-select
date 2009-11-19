@@ -1,0 +1,8 @@
+
+DEBUG = True
+TEMPLATE_DEBUG = DEBUG
+DATABASE_ENGINE = 'sqlite3'
+DATABASE_NAME = ':memory:'
+INSTALLED_APPS = ( 'batch_select', )
+
+TESTING_BATCH_SELECT=True
