@@ -35,7 +35,7 @@ def batch_select(model, instances, target_field_name, m2m_fieldname, **filter):
                              .extra(select=select)
     
     if filter:
-        m2m_instance = m2m_instance.filter(**filter)
+        m2m_instances = m2m_instances.filter(**filter)
     
     grouped = {}
     for m2m_instance in m2m_instances:

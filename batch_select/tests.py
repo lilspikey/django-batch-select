@@ -2,7 +2,7 @@ from django.conf import settings
 
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
-    from batch_select.models import Tag, Entry
+    from batch_select.models import Tag, Entry, Batch
     
     class TestBatchSelect(TransactionTestCase):
         
@@ -64,4 +64,25 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([tag2]),             set(entry2.tags_all))
             self.failUnlessEqual(set([tag2, tag3]),       set(entry3.tags_all))
             self.failUnlessEqual(set([]),                 set(entry4.tags_all))
-        
+
+        def test_batch_select_filtering(self):
+            entry1, entry2, entry3, entry4 = self._create_entries(4)
+            tag1, tag2, tag3 = self._create_tags('tag1', 'tag2', 'tag3')
+            
+            entry1.tags.add(tag1, tag2, tag3)
+            
+            entry2.tags.add(tag2)
+            
+            entry3.tags.add(tag2, tag3)
+            
+            entries = Entry.objects.batch_select(Batch('tags', name='tag1')).order_by('id')
+            entries = list(entries)
+            
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], entries)
+            
+            entry1, entry2, entry3, entry4 = entries
+
+            self.failUnlessEqual(set([tag1]), set(entry1.tags_all))
+            self.failUnlessEqual(set([]),     set(entry2.tags_all))
+            self.failUnlessEqual(set([]),     set(entry3.tags_all))
+            self.failUnlessEqual(set([]),     set(entry4.tags_all))       
