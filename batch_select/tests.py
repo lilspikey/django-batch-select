@@ -85,4 +85,16 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([tag1]), set(entry1.tags_all))
             self.failUnlessEqual(set([]),     set(entry2.tags_all))
             self.failUnlessEqual(set([]),     set(entry3.tags_all))
-            self.failUnlessEqual(set([]),     set(entry4.tags_all))       
+            self.failUnlessEqual(set([]),     set(entry4.tags_all))
+        
+        def test_batch_select_get(self):
+            entry = Entry.objects.create()
+            tag1, tag2, tag3 = self._create_tags('tag1', 'tag2', 'tag3')
+            
+            entry.tags.add(tag1, tag2, tag3)
+            
+            entry = Entry.objects.batch_select('tags').get()
+            
+            self.failIf( getattr(entry, 'tags_all', None) is None )
+            self.failUnlessEqual( set([tag1, tag2, tag3]), set(entry.tags_all) )
+    

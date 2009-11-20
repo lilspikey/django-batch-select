@@ -82,8 +82,8 @@ class BatchQuerySet(QuerySet):
         query._batches = batches
         return query
     
-    def __iter__(self):
-        result_iter = super(BatchQuerySet, self).__iter__()
+    def iterator(self):
+        result_iter = super(BatchQuerySet, self).iterator()
         batches = getattr(self, '_batches', None)
         if batches:
             results = list(result_iter)
