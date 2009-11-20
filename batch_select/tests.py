@@ -7,12 +7,12 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     class TestBatchSelect(TransactionTestCase):
         
         def test_batch_select_empty(self):
-            entries = Entry.objects.batch_select(all_tags='tags')
+            entries = Entry.objects.batch_select('tags')
             self.failUnlessEqual([], list(entries))
         
         def test_batch_select_no_tags(self):
             entry = Entry.objects.create()
-            entries = Entry.objects.batch_select(all_tags='tags')
+            entries = Entry.objects.batch_select('tags')
             self.failUnlessEqual([entry], list(entries))
         
         def test_batch_select_with_tags(self):
@@ -34,15 +34,15 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             entry3.tags.add(tag2)
             entry3.tags.add(tag3)
             
-            entries = Entry.objects.batch_select(all_tags='tags').order_by('id')
+            entries = Entry.objects.batch_select('tags').order_by('id')
             entries = list(entries)
             
             self.failUnlessEqual([entry1, entry2, entry3, entry4], entries)
             
             entry1, entry2, entry3, entry4 = entries
             
-            self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.all_tags))
-            self.failUnlessEqual(set([tag2]),             set(entry2.all_tags))
-            self.failUnlessEqual(set([tag2, tag3]),       set(entry3.all_tags))
-            self.failUnlessEqual(set([]),                 set(entry4.all_tags))
+            self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))
+            self.failUnlessEqual(set([tag2]),             set(entry2.tags_all))
+            self.failUnlessEqual(set([tag2, tag3]),       set(entry3.tags_all))
+            self.failUnlessEqual(set([]),                 set(entry4.tags_all))
             

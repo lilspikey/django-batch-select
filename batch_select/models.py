@@ -3,7 +3,7 @@ from django.db import models
 
 from django.conf import settings
 
-def batch_select(model, instances, target_field_name, m2m_fieldname):
+def batch_select(model, instances, target_field_name, m2m_fieldname, **filter):
     '''
     basically do an extra-query to select the many-to-many
     field values into the instances given. e.g. so we can get all
@@ -34,6 +34,9 @@ def batch_select(model, instances, target_field_name, m2m_fieldname):
                              .filter(**id__in_filter) \
                              .extra(select=select)
     
+    if filter:
+        m2m_instance = m2m_instance.filter(**filter)
+    
     grouped = {}
     for m2m_instance in m2m_instances:
         instance_id = getattr(m2m_instance, id_column)
@@ -46,6 +49,12 @@ def batch_select(model, instances, target_field_name, m2m_fieldname):
     
     return instances
 
+class Batch(object):
+    def __init__(self, m2m_fieldname, **filter):
+        self.m2m_fieldname = m2m_fieldname
+        self.filter = filter
+        self.target_field_name = '%s_all' % m2m_fieldname
+
 class BatchQuerySet(QuerySet):
     
     def _clone(self):
@@ -55,11 +64,21 @@ class BatchQuerySet(QuerySet):
             query._batches = set(batches)
         return query
     
-    def batch_select(self, **field_names):
+    def _create_batch(self, batch_or_str, target_field_name=None):
+        batch = batch_or_str
+        if isinstance(batch_or_str, basestring):
+            batch = Batch(batch_or_str)
+        if target_field_name:
+            batch.target_field_name = target_field_name
+        return batch
+    
+    def batch_select(self, *batches, **named_batches):
+        batches = getattr(self, '_batches', set()) | \
+                  set(self._create_batch(batch) for batch in batches) | \
+                  set(self._create_batch(batch, target_field_name) \
+                        for target_field_name, batch in named_batches.items())
+        
         query = self._clone()
-        batches = getattr(self, '_batches', set())
-        for target_field_name, m2m_fieldname in field_names.items():
-            batches.add((target_field_name, m2m_fieldname))
         query._batches = batches
         return query
     
@@ -68,9 +87,12 @@ class BatchQuerySet(QuerySet):
         batches = getattr(self, '_batches', None)
         if batches:
             results = list(result_iter)
-            for target_field_name, m2m_fieldname in set(batches):
-                results = batch_select(self.model, results, target_field_name, m2m_fieldname)
-                batches.remove((target_field_name, m2m_fieldname))
+            for batch in set(batches):
+                results = batch_select(self.model, results,
+                                       batch.target_field_name,
+                                       batch.m2m_fieldname,
+                                       **batch.filter)
+                batches.remove(batch)
             return iter(results)
         return result_iter
 
@@ -78,8 +100,8 @@ class BatchManager(models.Manager):
     def get_query_set(self):
         return BatchQuerySet(self.model)
     
-    def batch_select(self, **field_names):
-        return self.all().batch_select(**field_names)
+    def batch_select(self, *batches, **named_batches):
+        return self.all().batch_select(*batches, **named_batches)
 
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     class Tag(models.Model):
