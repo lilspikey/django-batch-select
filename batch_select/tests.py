@@ -3,6 +3,15 @@ from django.conf import settings
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from batch_select.models import Tag, Entry, Batch
+    from django import db
+    
+    def with_debug_true(fn):
+        def _decorated(*arg, **kw):
+            old_debug, settings.DEBUG = settings.DEBUG, True
+            result = fn(*arg, **kw)
+            settings.DEBUG = old_debug
+            return result
+        return _decorated
     
     class TestBatchSelect(TransactionTestCase):
         
@@ -156,3 +165,45 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             
             entry1 = list(new_qs)[0]
             self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))
+        
+        @with_debug_true
+        def test_batch_select_minimal_queries(self):
+            # make sure we are only doing the number of sql queries we intend to
+            entry1, entry2, entry3, entry4 = self._create_entries(4)
+            tag1, tag2, tag3 = self._create_tags('tag1', 'tag2', 'tag3')
+            
+            entry1.tags.add(tag1, tag2, tag3)
+            entry2.tags.add(tag2)
+            entry3.tags.add(tag2, tag3)
+            
+            db.reset_queries()
+            
+            qs = Entry.objects.batch_select(Batch('tags')).order_by('id')
+            
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+            
+            # this should have resulted in only two queries
+            self.failUnlessEqual(2, len(db.connection.queries))
+            
+            # double-check result is cached, and doesn't trigger more queries
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+            self.failUnlessEqual(2, len(db.connection.queries))
+        
+        @with_debug_true
+        def test_no_batch_select_minimal_queries(self):
+            # check we haven't altered the original querying behaviour
+            entry1, entry2, entry3 = self._create_entries(3)
+            
+            db.reset_queries()
+
+            qs = Entry.objects.order_by('id')
+
+            self.failUnlessEqual([entry1, entry2, entry3], list(qs))
+
+            # this should have resulted in only two queries
+            self.failUnlessEqual(1, len(db.connection.queries))
+            
+            # check caching still works
+            self.failUnlessEqual([entry1, entry2, entry3], list(qs))
+            self.failUnlessEqual(1, len(db.connection.queries))
+            
