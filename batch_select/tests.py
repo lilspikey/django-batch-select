@@ -128,4 +128,31 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             qs = Entry.objects.all().order_by('id')
             
             self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+        
+        def test_batch_select_after_new_query(self):
+            entry1, entry2, entry3, entry4 = self._create_entries(4)
+            tag1, tag2, tag3 = self._create_tags('tag1', 'tag2', 'tag3')
             
+            entry1.tags.add(tag1, tag2, tag3)
+            
+            entry2.tags.add(tag2)
+            
+            entry3.tags.add(tag2, tag3)
+            
+            qs = Entry.objects.batch_select(Batch('tags')).order_by('id')
+            
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+            
+            entry1, entry2, entry3, entry4 = list(qs)
+            
+            self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))
+            self.failUnlessEqual(set([tag2]),             set(entry2.tags_all))
+            self.failUnlessEqual(set([tag2, tag3]),       set(entry3.tags_all))
+            self.failUnlessEqual(set([]),                 set(entry4.tags_all))
+            
+            new_qs = qs.filter(id=entry1.id)
+            
+            self.failUnlessEqual([entry1], list(new_qs))
+            
+            entry1 = list(new_qs)[0]
+            self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))

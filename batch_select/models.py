@@ -87,12 +87,11 @@ class BatchQuerySet(QuerySet):
         batches = getattr(self, '_batches', None)
         if batches:
             results = list(result_iter)
-            for batch in set(batches):
+            for batch in batches:
                 results = batch_select(self.model, results,
                                        batch.target_field_name,
                                        batch.m2m_fieldname,
                                        **batch.filter)
-                batches.remove(batch)
             return iter(results)
         return result_iter
 
