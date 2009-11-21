@@ -97,4 +97,35 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             
             self.failIf( getattr(entry, 'tags_all', None) is None )
             self.failUnlessEqual( set([tag1, tag2, tag3]), set(entry.tags_all) )
-    
+        
+        def test_batch_select_caching_works(self):
+            # make sure that query set caching still
+            # works and doesn't alter the added fields
+            entry1, entry2, entry3, entry4 = self._create_entries(4)
+            tag1, tag2, tag3 = self._create_tags('tag1', 'tag2', 'tag3')
+            
+            entry1.tags.add(tag1, tag2, tag3)
+            
+            entry2.tags.add(tag2)
+            
+            entry3.tags.add(tag2, tag3)
+            
+            qs = Entry.objects.batch_select(Batch('tags')).order_by('id')
+            
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+            
+            entry1, entry2, entry3, entry4 = list(qs)
+            
+            self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))
+            self.failUnlessEqual(set([tag2]),             set(entry2.tags_all))
+            self.failUnlessEqual(set([tag2, tag3]),       set(entry3.tags_all))
+            self.failUnlessEqual(set([]),                 set(entry4.tags_all))
+            
+        def test_no_batch_select(self):
+            # make sure things still work when we don't do a batch select
+            entry1, entry2, entry3, entry4 = self._create_entries(4)
+            
+            qs = Entry.objects.all().order_by('id')
+            
+            self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
+            
