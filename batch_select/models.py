@@ -4,12 +4,16 @@ from django.db.models.fields import FieldDoesNotExist
 
 from django.conf import settings
 
-def _check_field_exists(model, m2m_fieldname):
-    field_object, model, direct, m2m = model._meta.get_field_by_name(m2m_fieldname)
-    if not m2m:
-        raise FieldDoesNotExist('"%s" is not a ManyToManyField' % m2m_fieldname)
+def _not_exists(fieldname):
+    raise FieldDoesNotExist('"%s" is not a ManyToManyField or a reverse ForeignKey relationship' % fieldname)
 
-def batch_select(model, instances, target_field_name, m2m_fieldname, **filter):
+def _check_field_exists(model, fieldname):
+    field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
+    if not m2m:
+        if direct: # reverse foreign key relationship
+            _not_exists(fieldname)
+
+def batch_select(model, instances, target_field_name, fieldname, **filter):
     '''
     basically do an extra-query to select the many-to-many
     field values into the instances given. e.g. so we can get all
@@ -23,31 +27,51 @@ def batch_select(model, instances, target_field_name, m2m_fieldname, **filter):
     containing the tags for that Entry
     '''
     
-    m2m_field = getattr(model, m2m_fieldname).field
-    m2m_model = m2m_field.rel.to # model on other end of relationship
-    related_name = m2m_field.related_query_name()
-    id_column = m2m_field.m2m_column_name()
-    db_table  = m2m_field.m2m_db_table()
     
     instances = list(instances)
-    
     ids = [instance.id for instance in instances]
     
-    id__in_filter={ ('%s__in' % related_name): ids }
-    select = { id_column: '`%s`.`%s`' % (db_table, id_column) }
-    # also need to get id, so we can can re-attach to instances
-    m2m_instances = m2m_model._default_manager \
-                             .filter(**id__in_filter) \
-                             .extra(select=select)
+    field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
+    if m2m:
+        m2m_field = field_object
+        m2m_model = m2m_field.rel.to # model on other end of relationship
+        related_name = m2m_field.related_query_name()
+        id_column = m2m_field.m2m_column_name()
+        db_table  = m2m_field.m2m_db_table()
+        
+        id_fn = lambda related_instance: getattr(related_instance, id_column)
+        
+        id__in_filter={ ('%s__in' % related_name): ids }
+        
+        select = { id_column: '`%s`.`%s`' % (db_table, id_column) }
+        # also need to get id, so we can can re-attach to instances
+        related_instances = m2m_model._default_manager \
+                                 .filter(**id__in_filter) \
+                                 .extra(select=select)
+    elif not direct:
+        # handle reverse foreign key relationships
+        fk_field = field_object.field
+        related_model = field_object.model
+        related_name  = fk_field.name
+        
+        id_fn = lambda related_instance: getattr(related_instance, related_name).id
+        
+        id__in_filter={ ('%s__in' % related_name): ids }
+        
+        related_instances = related_model._default_manager \
+                                .filter(**id__in_filter) \
+                                .select_related(related_name)
+    else:
+        _not_exists(fieldname)
     
     if filter:
-        m2m_instances = m2m_instances.filter(**filter)
+        related_instances = related_instances.filter(**filter)
     
     grouped = {}
-    for m2m_instance in m2m_instances:
-        instance_id = getattr(m2m_instance, id_column)
+    for related_instance in related_instances:
+        instance_id = id_fn(related_instance)
         group = grouped.get(instance_id, [])
-        group.append(m2m_instance)
+        group.append(related_instance)
         grouped[instance_id] = group
     
     for instance in instances:
@@ -114,8 +138,14 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     class Tag(models.Model):
         name = models.CharField(max_length=32)
     
+    class Section(models.Model):
+        name = models.CharField(max_length=32)
+        
+        objects = BatchManager()
+    
     class Entry(models.Model):
         title = models.CharField(max_length=255)
+        section = models.ForeignKey(Section, blank=True, null=True)
         tags = models.ManyToManyField(Tag)
         
         objects = BatchManager()

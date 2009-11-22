@@ -3,7 +3,7 @@ from django.conf import settings
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from django.db.models.fields import FieldDoesNotExist
-    from batch_select.models import Tag, Entry, Batch
+    from batch_select.models import Tag, Entry, Section, Batch
     from django import db
     
     def with_debug_true(fn):
@@ -221,4 +221,34 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
                 self.fail('selected field that is not m2m field')
             except FieldDoesNotExist:
                 pass
+        
+        def test_batch_select_empty_one_to_many(self):
+            sections = Section.objects.batch_select('entry')
+            self.failUnlessEqual([], list(sections))
+        
+        def test_batch_select_one_to_many_no_children(self):
+            section1 = Section.objects.create(name='s1')
+            section2 = Section.objects.create(name='s2')
+            
+            sections = Section.objects.batch_select('entry').order_by('id')
+            self.failUnlessEqual([section1, section2], list(sections))
+        
+        def test_batch_select_one_to_many_with_children(self):
+            section1 = Section.objects.create(name='s1')
+            section2 = Section.objects.create(name='s2')
+            section3 = Section.objects.create(name='s3')
+            
+            entry1 = Entry.objects.create(section=section1)
+            entry2 = Entry.objects.create(section=section1)
+            entry3 = Entry.objects.create(section=section3)
+            
+            sections = Section.objects.batch_select('entry').order_by('id')
+            self.failUnlessEqual([section1, section2, section3], list(sections))
+            
+            section1, section2, section3 = list(sections)
+            
+            self.failUnlessEqual(set([entry1, entry2]), set(section1.entry_all))
+            self.failUnlessEqual(set([]),               set(section2.entry_all))
+            self.failUnlessEqual(set([entry3]),         set(section3.entry_all))
+    
             
