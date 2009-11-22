@@ -100,6 +100,34 @@ Re-running that same last for loop without using batch_select generate three que
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 1
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 2
 
+More Advanced Usage
+=========================
+
+By default the batch fields are inserted into fields named <name>_all, on each object.  So:
+
+::
+
+    Entry.objects.batch_select('tags').all()
+
+Results in the Entry instances having fields called 'tags_all' containing the Tag objects associated with that Entry.
+
+If you want to give the field a different name just use a named parameter - in the same way as using the Aggregation_ API:
+
+::
+
+    Entry.objects.batch_select(selected_tags='tags').all()
+
+Would means the Tag objects would be assigned to fields called 'selected_tags'.
+
+If you want to perform filtering of the related objects you will need to use a Batch object.  By doing this you can pass extra named parameters in the same way as when using the filter method of a QuerySet:
+
+::
+    
+    from batch_select.models import Batch
+    
+    Entry.objects.batch_select(tags_containing_blue=Batch('tags', name__contains='blue'))
+
+Would return Entry objects with fields called 'tags_containing_name' with only those Tags whose name contains 'blue'.
 
 TODOs and BUGS
 ==============
@@ -110,3 +138,4 @@ See: http://github.com/lilspikey/django-batch-select/issues
 .. _ManyToManyField: http://docs.djangoproject.com/en/dev/ref/models/fields/#manytomanyfield
 .. _QuerySet: http://docs.djangoproject.com/en/dev/ref/models/querysets/
 .. _Manager: http://docs.djangoproject.com/en/dev/topics/db/managers/
+.. _Aggregation: http://docs.djangoproject.com/en/dev/topics/db/aggregation/
