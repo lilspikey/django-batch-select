@@ -1,7 +1,13 @@
 from django.db.models.query import QuerySet
 from django.db import models
+from django.db.models.fields import FieldDoesNotExist
 
 from django.conf import settings
+
+def _check_field_exists(model, m2m_fieldname):
+    field_object, model, direct, m2m = model._meta.get_field_by_name(m2m_fieldname)
+    if not m2m:
+        raise FieldDoesNotExist('"%s" is not a ManyToManyField' % m2m_fieldname)
 
 def batch_select(model, instances, target_field_name, m2m_fieldname, **filter):
     '''
@@ -70,6 +76,8 @@ class BatchQuerySet(QuerySet):
             batch = Batch(batch_or_str)
         if target_field_name:
             batch.target_field_name = target_field_name
+        
+        _check_field_exists(self.model, batch.m2m_fieldname)
         return batch
     
     def batch_select(self, *batches, **named_batches):
@@ -107,6 +115,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
         name = models.CharField(max_length=32)
     
     class Entry(models.Model):
+        title = models.CharField(max_length=255)
         tags = models.ManyToManyField(Tag)
         
         objects = BatchManager()

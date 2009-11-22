@@ -2,6 +2,7 @@ from django.conf import settings
 
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
+    from django.db.models.fields import FieldDoesNotExist
     from batch_select.models import Tag, Entry, Batch
     from django import db
     
@@ -206,4 +207,18 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             # check caching still works
             self.failUnlessEqual([entry1, entry2, entry3], list(qs))
             self.failUnlessEqual(1, len(db.connection.queries))
+        
+        def test_batch_select_non_existant_field(self):
+            try:
+                qs = Entry.objects.batch_select(Batch('qwerty')).order_by('id')
+                self.fail('selected field that does not exist')
+            except FieldDoesNotExist:
+                pass
+        
+        def test_batch_select_non_m2m_field(self):
+            try:
+                qs = Entry.objects.batch_select(Batch('title')).order_by('id')
+                self.fail('selected field that is not m2m field')
+            except FieldDoesNotExist:
+                pass
             
