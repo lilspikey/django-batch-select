@@ -19,7 +19,7 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     field values into the instances given. e.g. so we can get all
     Entries and their Tags in two queries rather than n+1
     
-    returns a list of the instance with the newly attached fields
+    returns a list of the instances with the newly attached fields
     
     batch_select(Entry, Entry.objects.all(), 'tags', 'all_tags')
     
