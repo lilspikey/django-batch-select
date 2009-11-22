@@ -129,6 +129,8 @@ class BatchQuerySet(QuerySet):
         return result_iter
 
 class BatchManager(models.Manager):
+    use_for_related_fields = True
+    
     def get_query_set(self):
         return BatchQuerySet(self.model)
     
