@@ -250,5 +250,29 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([entry1, entry2]), set(section1.entry_all))
             self.failUnlessEqual(set([]),               set(section2.entry_all))
             self.failUnlessEqual(set([entry3]),         set(section3.entry_all))
+        
+        @with_debug_true
+        def test_batch_select_one_to_many_with_children_minimal_queries(self):
+            section1 = Section.objects.create(name='s1')
+            section2 = Section.objects.create(name='s2')
+            section3 = Section.objects.create(name='s3')
+            
+            entry1 = Entry.objects.create(section=section1)
+            entry2 = Entry.objects.create(section=section2)
+            entry3 = Entry.objects.create(section=section3)
+            
+            db.reset_queries()
+            
+            sections = Section.objects.batch_select('entry').order_by('id')
+            self.failUnlessEqual([section1, section2, section3], list(sections))
+            
+            # this should have resulted in only two queries
+            self.failUnlessEqual(2, len(db.connection.queries))
+            
+            section1, section2, section3 = list(sections)
+            
+            self.failUnlessEqual(set([entry1]), set(section1.entry_all))
+            self.failUnlessEqual(set([entry2]), set(section2.entry_all))
+            self.failUnlessEqual(set([entry3]), set(section3.entry_all))
     
             
