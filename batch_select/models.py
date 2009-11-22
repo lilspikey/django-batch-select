@@ -40,7 +40,8 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
         id_column = m2m_field.m2m_column_name()
         db_table  = m2m_field.m2m_db_table()
         
-        id_fn = lambda related_instance: getattr(related_instance, id_column)
+        def get_instance_id(related_instance):
+            return getattr(related_instance, id_column)
         
         id__in_filter={ ('%s__in' % related_name): ids }
         
@@ -55,7 +56,8 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
         related_model = field_object.model
         related_name  = fk_field.name
         
-        id_fn = lambda related_instance: getattr(related_instance, related_name).id
+        def get_instance_id(related_instance):
+            return getattr(related_instance, related_name).id
         
         id__in_filter={ ('%s__in' % related_name): ids }
         
@@ -68,7 +70,7 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     
     grouped = {}
     for related_instance in related_instances:
-        instance_id = id_fn(related_instance)
+        instance_id = get_instance_id(related_instance)
         group = grouped.get(instance_id, [])
         group.append(related_instance)
         grouped[instance_id] = group
