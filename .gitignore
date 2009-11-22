@@ -1,2 +1,4 @@
 *.pyc
 .coverage
+dist
+django_batch_select.egg-info
