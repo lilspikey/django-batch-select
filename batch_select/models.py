@@ -25,6 +25,9 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     
     would return a list of Entry objects with 'all_tags' fields
     containing the tags for that Entry
+    
+    NB: this is a semi-private API at the moment, but may be useful if you
+    dont want to change you model/manager.
     '''
     
     _check_field_exists(model, fieldname)
