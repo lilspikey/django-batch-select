@@ -27,6 +27,7 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     containing the tags for that Entry
     '''
     
+    _check_field_exists(model, fieldname)
     
     instances = list(instances)
     ids = [instance.id for instance in instances]
@@ -61,8 +62,6 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
         related_instances = related_model._default_manager \
                                 .filter(**id__in_filter) \
                                 .select_related(related_name)
-    else:
-        _not_exists(fieldname)
     
     if filter:
         related_instances = related_instances.filter(**filter)
