@@ -4,7 +4,9 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from django.db.models.fields import FieldDoesNotExist
     from batch_select.models import Tag, Entry, Section, Batch
+    from batch_select.replay import Replay
     from django import db
+    import unittest
     
     def with_debug_true(fn):
         def _decorated(*arg, **kw):
@@ -275,4 +277,38 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([entry2]), set(section2.entry_all))
             self.failUnlessEqual(set([entry3]), set(section3.entry_all))
     
+    class ReplayTestCase(unittest.TestCase):
+        
+        def setUp(self):
+            class ReplayTest(Replay):
+                __replayable__ = ('filter', 'replay1', 'order_by')
+            self.klass = ReplayTest
+            self.instance = ReplayTest()
+        
+        def test_replayable_methods_present_on_class(self):
+            self.failIf( getattr(self.klass, 'filter', None) is None )
+            self.failIf( getattr(self.klass, 'replay1', None) is None )
+            self.failIf( getattr(self.klass, 'order_by', None) is None )
+        
+        def test_replayable_methods_present_on_instance(self):
+            self.failIf( getattr(self.instance, 'filter', None) is None )
+            self.failIf( getattr(self.instance, 'replay1', None) is None )
+            self.failIf( getattr(self.instance, 'order_by', None) is None )
+        
+        def test_replay_methods_recorded(self):
+            r = self.instance
+            self.failUnlessEqual([], r._replays)
             
+            self.failIf(r == r.filter())
+            
+            self.failUnlessEqual([('filter', (), {})], r.filter()._replays)
+            self.failUnlessEqual([('replay1', (), {})], r.replay1()._replays)
+            self.failUnlessEqual([('order_by', (), {})], r.order_by()._replays)
+            
+            self.failUnlessEqual([('filter', (1,), {})], r.filter(1)._replays)
+            self.failUnlessEqual([('filter', (1,), {'param': 's'})], r.filter(1, param='s')._replays)
+            
+            self.failUnlessEqual([('filter', (), {'name__contains': 'test'}),
+                                  ('order_by', ('id',), {})],
+                                 r.filter(name__contains='test').order_by('id')._replays)
+    
