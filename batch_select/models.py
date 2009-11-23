@@ -91,8 +91,8 @@ class Batch(object):
 
 class BatchQuerySet(QuerySet):
     
-    def _clone(self):
-        query = super(BatchQuerySet, self)._clone()
+    def _clone(self, *args, **kwargs):
+        query = super(BatchQuerySet, self)._clone(*args, **kwargs)
         batches = getattr(self, '_batches', None)
         if batches:
             query._batches = set(batches)
