@@ -6,6 +6,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from batch_select.models import Tag, Entry, Section, Batch
     from batch_select.replay import Replay
     from django import db
+    from django.db.models import Count
     import unittest
     
     def with_debug_true(fn):
@@ -350,7 +351,34 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual([self.tag2],                       entry2.tags_all)
             self.failUnlessEqual([self.tag3, self.tag2],            entry3.tags_all)
             self.failUnlessEqual([],                                entry4.tags_all)
-    
+        
+        def test_batch_annotate(self):
+            section1 = Section.objects.create(name='s1')
+            section2 = Section.objects.create(name='s2')
+            section3 = Section.objects.create(name='s3')
+            
+            entry1 = Entry.objects.create(section=section1)
+            entry2 = Entry.objects.create(section=section1)
+            entry3 = Entry.objects.create(section=section3)
+            
+            entry1.tags.add(self.tag2, self.tag3, self.tag1)
+            entry3.tags.add(self.tag2, self.tag3)
+            
+            batch = Batch('entry').order_by('id').annotate(Count('tags'))
+            sections = Section.objects.batch_select(batch).order_by('id')
+            sections = list(sections)
+            self.failUnlessEqual([section1, section2, section3], sections)
+            
+            section1, section2, section3 = sections
+            
+            self.failUnlessEqual([entry1, entry2], section1.entry_all)
+            self.failUnlessEqual([],               section2.entry_all)
+            self.failUnlessEqual([entry3],         section3.entry_all)
+            
+            self.failUnlessEqual(3, section1.entry_all[0].tags__count)
+            self.failUnlessEqual(0, section1.entry_all[1].tags__count)
+            self.failUnlessEqual(2, section3.entry_all[0].tags__count)
+            
         
     class ReplayTestCase(unittest.TestCase):
         
