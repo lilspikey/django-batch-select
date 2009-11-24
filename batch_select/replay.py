@@ -23,15 +23,17 @@ class ReplayMetaClass(type):
 class Replay(object):
     __metaclass__ = ReplayMetaClass
     
-    def __init__(self, replays=None):
-        self._replays=(replays or [])
+    def __init__(self):
+        self._replays=[]
     
     def _add_replay(self, method_name, *args, **kwargs):
         self._replays.append((method_name, args, kwargs))
     
-    def clone(self):
+    def clone(self, *args, **kwargs):
         klass = self.__class__
-        return klass(replays=self._replays[:])
+        cloned = klass(*args, **kwargs)
+        cloned._replays=self._replays[:]
+        return cloned
     
     def replay(self, target):
         result = target

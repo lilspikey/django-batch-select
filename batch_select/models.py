@@ -4,6 +4,8 @@ from django.db.models.fields import FieldDoesNotExist
 
 from django.conf import settings
 
+from replay import Replay
+
 def _not_exists(fieldname):
     raise FieldDoesNotExist('"%s" is not a ManyToManyField or a reverse ForeignKey relationship' % fieldname)
 
@@ -13,7 +15,7 @@ def _check_field_exists(model, fieldname):
         if direct: # reverse foreign key relationship
             _not_exists(fieldname)
 
-def batch_select(model, instances, target_field_name, fieldname, **filter):
+def batch_select(model, instances, target_field_name, fieldname, filter=None):
     '''
     basically do an extra-query to select the many-to-many
     field values into the instances given. e.g. so we can get all
@@ -25,6 +27,9 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     
     would return a list of Entry objects with 'all_tags' fields
     containing the tags for that Entry
+    
+    filter is a function that can be used alter the extra-query - it 
+    takes a queryset and returns a filtered version of the queryset
     
     NB: this is a semi-private API at the moment, but may be useful if you
     dont want to change you model/manager.
@@ -69,7 +74,7 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
                                 .select_related(related_name)
     
     if filter:
-        related_instances = related_instances.filter(**filter)
+        related_instances = filter(related_instances)
     
     grouped = {}
     for related_instance in related_instances:
@@ -83,11 +88,23 @@ def batch_select(model, instances, target_field_name, fieldname, **filter):
     
     return instances
 
-class Batch(object):
+class Batch(Replay):
+    # function on QuerySet that we can invoke via this batch object
+    __replayable__ = ('filter', 'exclude', 'annotate', 
+                      'order_by', 'reverse', 'select_related',
+                      'extra', 'defer', 'only')
+    
     def __init__(self, m2m_fieldname, **filter):
+        super(Batch,self).__init__()
         self.m2m_fieldname = m2m_fieldname
-        self.filter = filter
         self.target_field_name = '%s_all' % m2m_fieldname
+        if filter:
+            self._add_replay('filter', *(), **filter)
+    
+    def clone(self):
+        cloned = super(Batch, self).clone(self.m2m_fieldname)
+        cloned.target_field_name = self.target_field_name
+        return cloned
 
 class BatchQuerySet(QuerySet):
     
@@ -127,7 +144,7 @@ class BatchQuerySet(QuerySet):
                 results = batch_select(self.model, results,
                                        batch.target_field_name,
                                        batch.m2m_fieldname,
-                                       **batch.filter)
+                                       batch.replay)
             return iter(results)
         return result_iter
 
