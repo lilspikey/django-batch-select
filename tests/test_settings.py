@@ -9,5 +9,5 @@ TESTING_BATCH_SELECT=True
 
 # enable this for coverage (using django test coverage 
 # http://pypi.python.org/pypi/django-test-coverage )
-TEST_RUNNER = 'django-test-coverage.runner.run_tests'
-COVERAGE_MODULES = ('batch_select.models', 'batch_select.replay')
+#TEST_RUNNER = 'django-test-coverage.runner.run_tests'
+#COVERAGE_MODULES = ('batch_select.models', 'batch_select.replay')
