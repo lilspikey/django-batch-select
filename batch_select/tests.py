@@ -281,34 +281,52 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
         
         def setUp(self):
             class ReplayTest(Replay):
-                __replayable__ = ('filter', 'replay1', 'order_by')
+                __replayable__ = ('lower', 'upper', 'replace')
             self.klass = ReplayTest
             self.instance = ReplayTest()
         
         def test_replayable_methods_present_on_class(self):
-            self.failIf( getattr(self.klass, 'filter', None) is None )
-            self.failIf( getattr(self.klass, 'replay1', None) is None )
-            self.failIf( getattr(self.klass, 'order_by', None) is None )
+            self.failIf( getattr(self.klass, 'lower', None) is None )
+            self.failIf( getattr(self.klass, 'upper', None) is None )
+            self.failIf( getattr(self.klass, 'replace', None) is None )
         
         def test_replayable_methods_present_on_instance(self):
-            self.failIf( getattr(self.instance, 'filter', None) is None )
-            self.failIf( getattr(self.instance, 'replay1', None) is None )
-            self.failIf( getattr(self.instance, 'order_by', None) is None )
+            self.failIf( getattr(self.instance, 'lower', None) is None )
+            self.failIf( getattr(self.instance, 'upper', None) is None )
+            self.failIf( getattr(self.instance, 'replace', None) is None )
         
         def test_replay_methods_recorded(self):
             r = self.instance
             self.failUnlessEqual([], r._replays)
             
-            self.failIf(r == r.filter())
+            self.failIf(r == r.upper())
             
-            self.failUnlessEqual([('filter', (), {})], r.filter()._replays)
-            self.failUnlessEqual([('replay1', (), {})], r.replay1()._replays)
-            self.failUnlessEqual([('order_by', (), {})], r.order_by()._replays)
+            self.failUnlessEqual([('upper', (), {})], r.upper()._replays)
+            self.failUnlessEqual([('lower', (), {})], r.lower()._replays)
+            self.failUnlessEqual([('replace', (), {})], r.replace()._replays)
             
-            self.failUnlessEqual([('filter', (1,), {})], r.filter(1)._replays)
-            self.failUnlessEqual([('filter', (1,), {'param': 's'})], r.filter(1, param='s')._replays)
+            self.failUnlessEqual([('upper', (1,), {})], r.upper(1)._replays)
+            self.failUnlessEqual([('upper', (1,), {'param': 's'})], r.upper(1, param='s')._replays)
             
-            self.failUnlessEqual([('filter', (), {'name__contains': 'test'}),
-                                  ('order_by', ('id',), {})],
-                                 r.filter(name__contains='test').order_by('id')._replays)
-    
+            self.failUnlessEqual([('upper', (), {'name__contains': 'test'}),
+                                  ('replace', ('id',), {})],
+                                 r.upper(name__contains='test').replace('id')._replays)
+        
+        def test_replay_no_replay(self):
+            r = self.instance
+            s = 'gfjhGF&'
+            self.failUnlessEqual(s, r.replay(s))
+        
+        def test_replay_single_call(self):
+            r = self.instance.upper()
+            self.failUnlessEqual('MYWORD', r.replay('MyWord'))
+            
+            r = self.instance.lower()
+            self.failUnlessEqual('myword', r.replay('MyWord'))
+            
+            r = self.instance.replace('a', 'b')
+            self.failUnlessEqual('bbb', r.replay('aaa'))
+            
+            r = self.instance.replace('a', 'b', 1)
+            self.failUnlessEqual('baa', r.replay('aaa'))
+            

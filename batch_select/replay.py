@@ -36,5 +36,6 @@ class Replay(object):
     def replay(self, target):
         result = target
         for method_name, args, kwargs in self._replays:
-            result = getattr(result, method_name, *args, **kwargs)
+            method = getattr(result, method_name)
+            result = method(*args, **kwargs)
         return result
