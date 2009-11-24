@@ -8,5 +8,5 @@ INSTALLED_APPS = ( 'batch_select', )
 TESTING_BATCH_SELECT=True
 
 # enable this for coverage
-#TEST_RUNNER = 'django-test-coverage.runner.run_tests'
-#COVERAGE_MODULES = ('batch_select.models', 'batch_select.replay')
+TEST_RUNNER = 'django-test-coverage.runner.run_tests'
+COVERAGE_MODULES = ('batch_select.models', 'batch_select.replay')
