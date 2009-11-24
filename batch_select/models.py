@@ -89,7 +89,7 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     return instances
 
 class Batch(Replay):
-    # function on QuerySet that we can invoke via this batch object
+    # functions on QuerySet that we can invoke via this batch object
     __replayable__ = ('filter', 'exclude', 'annotate', 
                       'order_by', 'reverse', 'select_related',
                       'extra', 'defer', 'only')
@@ -98,7 +98,7 @@ class Batch(Replay):
         super(Batch,self).__init__()
         self.m2m_fieldname = m2m_fieldname
         self.target_field_name = '%s_all' % m2m_fieldname
-        if filter:
+        if filter: # add a filter replay method
             self._add_replay('filter', *(), **filter)
     
     def clone(self):

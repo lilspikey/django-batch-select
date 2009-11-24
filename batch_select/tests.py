@@ -260,7 +260,8 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
         def setUp(self):
             super(TransactionTestCase, self).setUp()
             self.entry1, self.entry2, self.entry3, self.entry4 = _create_entries(4)
-            self.tag1, self.tag2, self.tag3 = _create_tags('tag1', 'tag2', 'tag3')
+            # put tags names in different order to id
+            self.tag2, self.tag1, self.tag3 = _create_tags('tag2', 'tag1', 'tag3')
             
             self.entry1.tags.add(self.tag1, self.tag2, self.tag3)
             self.entry2.tags.add(self.tag2)
@@ -307,7 +308,50 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([]),                     set(entry2.tags_all))
             self.failUnlessEqual(set([self.tag3]),            set(entry3.tags_all))
             self.failUnlessEqual(set([]),                     set(entry4.tags_all))
+        
+        def test_batch_order_by_name(self):
+            entries = Entry.objects.batch_select(Batch('tags').order_by('name')).order_by('id')
+            entries = list(entries)
+
+            self.failUnlessEqual([self.entry1, self.entry2, self.entry3, self.entry4],
+                                  entries)
+
+            entry1, entry2, entry3, entry4 = entries
+
+            self.failUnlessEqual([self.tag1, self.tag2, self.tag3], entry1.tags_all)
+            self.failUnlessEqual([self.tag2],                       entry2.tags_all)
+            self.failUnlessEqual([self.tag2, self.tag3],            entry3.tags_all)
+            self.failUnlessEqual([],                                entry4.tags_all)
     
+        def test_batch_order_by_id(self):
+            entries = Entry.objects.batch_select(Batch('tags').order_by('id')).order_by('id')
+            entries = list(entries)
+
+            self.failUnlessEqual([self.entry1, self.entry2, self.entry3, self.entry4],
+                                  entries)
+
+            entry1, entry2, entry3, entry4 = entries
+
+            self.failUnlessEqual([self.tag2, self.tag1, self.tag3], entry1.tags_all)
+            self.failUnlessEqual([self.tag2],                       entry2.tags_all)
+            self.failUnlessEqual([self.tag2, self.tag3],            entry3.tags_all)
+            self.failUnlessEqual([],                                entry4.tags_all)
+        
+        def test_batch_reverse(self):
+            entries = Entry.objects.batch_select(Batch('tags').order_by('name').reverse()).order_by('id')
+            entries = list(entries)
+
+            self.failUnlessEqual([self.entry1, self.entry2, self.entry3, self.entry4],
+                                  entries)
+
+            entry1, entry2, entry3, entry4 = entries
+
+            self.failUnlessEqual([self.tag3, self.tag2, self.tag1], entry1.tags_all)
+            self.failUnlessEqual([self.tag2],                       entry2.tags_all)
+            self.failUnlessEqual([self.tag3, self.tag2],            entry3.tags_all)
+            self.failUnlessEqual([],                                entry4.tags_all)
+    
+        
     class ReplayTestCase(unittest.TestCase):
         
         def setUp(self):
