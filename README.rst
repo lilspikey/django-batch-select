@@ -129,6 +129,37 @@ If you want to perform filtering of the related objects you will need to use a B
 
 Would return Entry objects with fields called 'tags_containing_name' with only those Tags whose name contains 'blue'.
 
+In addition to filtering by names parameters you can also the following methods on a Batch object, with their effects being passed on to the underlying QuerySet_ object:
+
+* filter_
+* exclude_
+* annotate_
+* order_by_
+* reverse_
+* select_related_
+* extra_
+* defer_
+* only_
+
+(Note that distinct(), values() etc are not included as they would have side-effects on how the extra query is associated with the original query)
+So for example to achieve the same effect as the filter above you could do the following:
+
+::
+    
+    from batch_select.models import Batch
+    
+    Entry.objects.batch_select(tags_containing_blue=Batch('tags').filter(name__contains='blue'))
+
+Whereas the following would exclude tags containing "blue" and order by name:
+
+::
+
+    from batch_select.models import Batch
+    
+    batch = Batch('tags').exclude(name__contains='blue').order_by('name')
+    Entry.objects.batch_select(tags_not_containing_blue=batch)
+
+
 TODOs and BUGS
 ==============
 See: http://github.com/lilspikey/django-batch-select/issues
@@ -139,3 +170,11 @@ See: http://github.com/lilspikey/django-batch-select/issues
 .. _QuerySet: http://docs.djangoproject.com/en/dev/ref/models/querysets/
 .. _Manager: http://docs.djangoproject.com/en/dev/topics/db/managers/
 .. _Aggregation: http://docs.djangoproject.com/en/dev/topics/db/aggregation/
+.. _filter: http://docs.djangoproject.com/en/dev/ref/models/querysets/#filter-kwargs
+.. _exclude: http://docs.djangoproject.com/en/dev/ref/models/querysets/#exclude-kwargs
+.. _annotate: http://docs.djangoproject.com/en/dev/ref/models/querysets/#annotate-args-kwargs
+.. _order_by: http://docs.djangoproject.com/en/dev/ref/models/querysets/#order-by-fields
+.. _reverse: http://docs.djangoproject.com/en/dev/ref/models/querysets/#reverse
+.. _extra: http://docs.djangoproject.com/en/dev/ref/models/querysets/#extra-select-none-where-none-params-none-tables-none-order-by-none-select-params-none
+.. _defer: http://docs.djangoproject.com/en/dev/ref/models/querysets/#defer-fields
+.. _only: http://docs.djangoproject.com/en/dev/ref/models/querysets/#only-fields
