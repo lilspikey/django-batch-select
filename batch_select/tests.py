@@ -420,20 +420,18 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnless( entry2.location is None )
             self.failUnlessEqual(0, len(db.connection.queries))
         
-        @with_debug_queries
-        def test_batch_defer(self):
-            batch = Batch('tags').order_by('id').defer('name')
-            entries = Entry.objects.batch_select(batch).order_by('id')            
+        def _check_name_deferred(self, batch):
+            entries = Entry.objects.batch_select(batch).order_by('id')
             entries = list(entries)
-
+            
             self.failUnlessEqual([self.entry1, self.entry2, self.entry3, self.entry4],
                                   entries)
-
+            
             self.failUnlessEqual(2, len(db.connection.queries))
             db.reset_queries()
             
             entry1, entry2, entry3, entry4 = entries
-
+            
             self.failUnlessEqual(3, len(entry1.tags_all))
             self.failUnlessEqual(1, len(entry2.tags_all))
             self.failUnlessEqual(2, len(entry3.tags_all))
@@ -449,7 +447,16 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(2, len(db.connection.queries))
             self.failUnlessEqual( self.tag3.name, entry1.tags_all[2].name )
             self.failUnlessEqual(3, len(db.connection.queries))
-            
+        
+        @with_debug_queries
+        def test_batch_defer(self):
+            batch = Batch('tags').order_by('id').defer('name')
+            self._check_name_deferred(batch)
+
+        @with_debug_queries
+        def test_batch_only(self):
+            batch = Batch('tags').order_by('id').only('id')
+            self._check_name_deferred(batch)
         
     class ReplayTestCase(unittest.TestCase):
         
