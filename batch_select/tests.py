@@ -9,8 +9,9 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.db.models import Count
     import unittest
     
-    def with_debug_true(fn):
+    def with_debug_queries(fn):
         def _decorated(*arg, **kw):
+            db.reset_queries()
             old_debug, settings.DEBUG = settings.DEBUG, True
             result = fn(*arg, **kw)
             settings.DEBUG = old_debug
@@ -148,7 +149,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             entry1 = list(new_qs)[0]
             self.failUnlessEqual(set([tag1, tag2, tag3]), set(entry1.tags_all))
         
-        @with_debug_true
+        @with_debug_queries
         def test_batch_select_minimal_queries(self):
             # make sure we are only doing the number of sql queries we intend to
             entry1, entry2, entry3, entry4 = _create_entries(4)
@@ -171,7 +172,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual([entry1, entry2, entry3, entry4], list(qs))
             self.failUnlessEqual(2, len(db.connection.queries))
         
-        @with_debug_true
+        @with_debug_queries
         def test_no_batch_select_minimal_queries(self):
             # check we haven't altered the original querying behaviour
             entry1, entry2, entry3 = _create_entries(3)
@@ -232,7 +233,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([]),               set(section2.entry_all))
             self.failUnlessEqual(set([entry3]),         set(section3.entry_all))
         
-        @with_debug_true
+        @with_debug_queries
         def test_batch_select_one_to_many_with_children_minimal_queries(self):
             section1 = Section.objects.create(name='s1')
             section2 = Section.objects.create(name='s2')
@@ -379,7 +380,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(0, section1.entry_all[1].tags__count)
             self.failUnlessEqual(2, section3.entry_all[0].tags__count)
         
-        @with_debug_true
+        @with_debug_queries
         def test_batch_select_related(self):
             # verify using select related doesn't tigger more queries
             section1 = Section.objects.create(name='s1')
@@ -418,6 +419,36 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(0, len(db.connection.queries))
             self.failUnless( entry2.location is None )
             self.failUnlessEqual(0, len(db.connection.queries))
+        
+        @with_debug_queries
+        def test_batch_defer(self):
+            batch = Batch('tags').order_by('id').defer('name')
+            entries = Entry.objects.batch_select(batch).order_by('id')            
+            entries = list(entries)
+
+            self.failUnlessEqual([self.entry1, self.entry2, self.entry3, self.entry4],
+                                  entries)
+
+            self.failUnlessEqual(2, len(db.connection.queries))
+            db.reset_queries()
+            
+            entry1, entry2, entry3, entry4 = entries
+
+            self.failUnlessEqual(3, len(entry1.tags_all))
+            self.failUnlessEqual(1, len(entry2.tags_all))
+            self.failUnlessEqual(2, len(entry3.tags_all))
+            self.failUnlessEqual(0, len(entry4.tags_all))
+            
+            self.failUnlessEqual(0, len(db.connection.queries))
+            
+            # as name has been defered it should trigger a query when we
+            # try to access it
+            self.failUnlessEqual( self.tag2.name, entry1.tags_all[0].name )
+            self.failUnlessEqual(1, len(db.connection.queries))
+            self.failUnlessEqual( self.tag1.name, entry1.tags_all[1].name )
+            self.failUnlessEqual(2, len(db.connection.queries))
+            self.failUnlessEqual( self.tag3.name, entry1.tags_all[2].name )
+            self.failUnlessEqual(3, len(db.connection.queries))
             
         
     class ReplayTestCase(unittest.TestCase):
