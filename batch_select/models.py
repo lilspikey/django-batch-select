@@ -15,11 +15,18 @@ def _check_field_exists(model, fieldname):
         if direct: # reverse foreign key relationship
             _not_exists(fieldname)
 
+def _id_attr(id_column):
+    # mangle the id column name, so we can make sure
+    # the postgres doesn't complain about not quoting
+    # field names (this helps make sure we don't clash
+    # with the regular id column)
+    return '__%s' % id_column.lower()
+
 def _select_related_instances(related_model, related_name, ids, db_table, id_column):
     id__in_filter={ ('%s__in' % related_name): ids }
 
     qn = connection.ops.quote_name
-    select = { id_column: '%s.%s' % (qn(db_table), qn(id_column)) }
+    select = { _id_attr(id_column): '%s.%s' % (qn(db_table), qn(id_column)) }
     related_instances = related_model._default_manager \
                             .filter(**id__in_filter) \
                             .extra(select=select)
@@ -72,8 +79,9 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
         related_instances = filter(related_instances)
     
     grouped = {}
+    id_attr = _id_attr(id_column)
     for related_instance in related_instances:
-        instance_id = getattr(related_instance, id_column)
+        instance_id = getattr(related_instance, id_attr)
         group = grouped.get(instance_id, [])
         group.append(related_instance)
         grouped[instance_id] = group
