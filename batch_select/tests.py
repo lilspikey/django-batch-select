@@ -529,3 +529,22 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             sql = qs.query.as_sql()[0]
             self.failUnless(sql.startswith('SELECT (%s.%s) AS ' %(
                         qn('batch_select_entry'), qn('section_id'))))
+
+        @with_debug_queries
+        def test_batch_select_related(self):
+            """Field names should be quoted in the WHERE clause
+
+            PostgreSQL is particularly picky about quoting when table
+            or field names contain mixed case
+            """
+            section = Section.objects.create(name='s1')
+            entry = Entry.objects.create(section=section)
+
+            db.reset_queries()
+            sections = Section.objects.batch_select('entry').all()
+            sections[0]
+            sql = db.connection.queries[-1]['sql']
+            correct_where = ' WHERE "batch_select_entry"."section_ID" IN (1)'
+            self.failUnless(sql.endswith(correct_where),
+                            '"section_ID" is not correctly quoted in the WHERE '
+                            'clause of %r' % sql)
