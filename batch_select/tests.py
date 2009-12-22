@@ -3,7 +3,7 @@ from django.conf import settings
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from django.db.models.fields import FieldDoesNotExist
-    from batch_select.models import Tag, Entry, Section, Batch, Location
+    from batch_select.models import Tag, Entry, Section, Batch, Location, _select_related_instances
     from batch_select.replay import Replay
     from django import db
     from django.db.models import Count
@@ -510,4 +510,22 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             
             r = self.instance.replace('a', 'b', 1)
             self.failUnlessEqual('baa', r.replay('aaa'))
-            
+
+    class QuotingTestCase(TransactionTestCase):
+        """Ensure correct quoting of table and field names in queries"""
+
+        def test_uses_backend_specific_quoting(self):
+            """Backend-specific quotes should be used
+
+            Table and field names should be quoted with the quote_name
+            function provided by the database backend.  The test here
+            is a bit trivial since a real-life test case with
+            PostgreSQL schema tricks or other table/field name munging
+            would be difficult.
+            """
+            qn = db.connection.ops.quote_name
+            qs = _select_related_instances(Entry, 'id', [1],
+                                           'batch_select_entry', 'section_id')
+            sql = qs.query.as_sql()[0]
+            self.failUnless(sql.startswith('SELECT (%s.%s) AS ' %(
+                        qn('batch_select_entry'), qn('section_id'))))

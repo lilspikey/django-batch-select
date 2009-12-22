@@ -1,5 +1,5 @@
 from django.db.models.query import QuerySet
-from django.db import models
+from django.db import models, connection
 from django.db.models.fields import FieldDoesNotExist
 
 from django.conf import settings
@@ -17,8 +17,9 @@ def _check_field_exists(model, fieldname):
 
 def _select_related_instances(related_model, related_name, ids, db_table, id_column):
     id__in_filter={ ('%s__in' % related_name): ids }
-    
-    select = { id_column: '`%s`.`%s`' % (db_table, id_column) }
+
+    qn = connection.ops.quote_name
+    select = { id_column: '%s.%s' % (qn(db_table), qn(id_column)) }
     related_instances = related_model._default_manager \
                             .filter(**id__in_filter) \
                             .extra(select=select)
