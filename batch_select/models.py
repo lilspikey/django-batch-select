@@ -59,11 +59,18 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     
     field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
     if m2m:
-        m2m_field = field_object
-        related_model = m2m_field.rel.to # model on other end of relationship
-        related_name = m2m_field.related_query_name()
-        id_column = m2m_field.m2m_column_name()
-        db_table  = m2m_field.m2m_db_table()
+        if not direct:
+            m2m_field = field_object.field
+            related_model = field_object.model
+            related_name = m2m_field.name
+            id_column = m2m_field.m2m_reverse_name()
+            db_table = m2m_field.m2m_db_table()
+        else:
+            m2m_field = field_object
+            related_model = m2m_field.rel.to # model on other end of relationship
+            related_name = m2m_field.related_query_name()
+            id_column = m2m_field.m2m_column_name()
+            db_table  = m2m_field.m2m_db_table()
     elif not direct:
         # handle reverse foreign key relationships
         fk_field = field_object.field
