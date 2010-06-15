@@ -170,6 +170,8 @@ class BatchManager(models.Manager):
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     class Tag(models.Model):
         name = models.CharField(max_length=32)
+        
+        objects = BatchManager()
     
     class Section(models.Model):
         name = models.CharField(max_length=32)

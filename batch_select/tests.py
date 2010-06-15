@@ -458,6 +458,31 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             batch = Batch('tags').order_by('id').only('id')
             self._check_name_deferred(batch)
         
+        def test_batch_select_reverse_m2m(self):
+            entry1, entry2, entry3, entry4 = _create_entries(4)
+            tag1, tag2, tag3 = _create_tags('tag1', 'tag2', 'tag3')
+
+            entry1.tags.add(tag1, tag2, tag3)
+
+            entry2.tags.add(tag2)
+
+            entry3.tags.add(tag2, tag3)
+
+            tags = Tag.objects.batch_select('entry')\
+                              .filter(id__in=[tag1.id, tag2.id, tag3.id])\
+                              .order_by('id')
+            tags = list(tags)
+
+            self.failUnlessEqual([tag1, tag2, tag3], tags)
+
+            tag1, tag2, tag3 = tags
+
+            self.failUnlessEqual(set([entry1]), set(tag1.entry_all))
+            self.failUnlessEqual(set([entry1, entry2, entry3]),
+                                 set(tag2.entry_all))
+            self.failUnlessEqual(set([entry1, entry3]), set(tag3.entry_all))
+
+
     class ReplayTestCase(unittest.TestCase):
         
         def setUp(self):
