@@ -3,7 +3,8 @@ from django.conf import settings
 if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from django.db.models.fields import FieldDoesNotExist
-    from batch_select.models import Tag, Entry, Section, Batch, Location, _select_related_instances
+    from batch_select.models import Tag, Entry, Section, Batch, Location,\
+                                    _select_related_instances, Country
     from batch_select.replay import Replay
     from django import db
     from django.db.models import Count
@@ -481,6 +482,21 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([entry1, entry2, entry3]),
                                  set(tag2.entry_all))
             self.failUnlessEqual(set([entry1, entry3]), set(tag3.entry_all))
+
+        def test_non_id_primary_key(self):
+            uk = Country.objects.create(name='United Kingdom')
+            brighton = Location.objects.create(name='Brighton')
+            hove = Location.objects.create(name='Hove')
+
+            uk.locations.add(brighton, hove)
+
+            countries = Country.objects.batch_select('locations')
+            countries = list(countries)
+
+            self.failUnlessEqual([uk], countries)
+
+            uk = countries[0]
+            self.failUnlessEqual(set([brighton, hove]), set(uk.locations_all))
 
 
     class ReplayTestCase(unittest.TestCase):

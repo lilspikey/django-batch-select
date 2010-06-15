@@ -55,7 +55,7 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     _check_field_exists(model, fieldname)
     
     instances = list(instances)
-    ids = [instance.id for instance in instances]
+    ids = [instance.pk for instance in instances]
     
     field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
     if m2m:
@@ -94,7 +94,7 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
         grouped[instance_id] = group
     
     for instance in instances:
-        setattr(instance, target_field_name, grouped.get(instance.id,[]))
+        setattr(instance, target_field_name, grouped.get(instance.pk, []))
     
     return instances
 
@@ -186,6 +186,13 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
         section  = models.ForeignKey(Section, blank=True, null=True)
         location = models.ForeignKey(Location, blank=True, null=True)
         tags = models.ManyToManyField(Tag)
+        
+        objects = BatchManager()
+    
+    class Country(models.Model):
+        # non id pk
+        name = models.CharField(primary_key=True, max_length=100)
+        locations = models.ManyToManyField(Location)
         
         objects = BatchManager()
         
