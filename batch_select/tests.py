@@ -555,6 +555,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     class QuotingTestCase(TransactionTestCase):
         """Ensure correct quoting of table and field names in queries"""
 
+        @with_debug_queries
         def test_uses_backend_specific_quoting(self):
             """Backend-specific quotes should be used
 
@@ -567,7 +568,9 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             qn = db.connection.ops.quote_name
             qs = _select_related_instances(Entry, 'id', [1],
                                            'batch_select_entry', 'section_id')
-            sql = qs.query.as_sql()[0]
+            db.reset_queries()
+            list(qs)
+            sql = db.connection.queries[-1]['sql']
             self.failUnless(sql.startswith('SELECT (%s.%s) AS ' %(
                         qn('batch_select_entry'), qn('section_id'))))
 
