@@ -48,7 +48,7 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     takes a queryset and returns a filtered version of the queryset
     
     NB: this is a semi-private API at the moment, but may be useful if you
-    dont want to change you model/manager.
+    dont want to change your model/manager.
     '''
     
     _check_field_exists(model, fieldname)
