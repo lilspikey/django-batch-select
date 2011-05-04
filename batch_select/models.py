@@ -39,9 +39,9 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     
     returns a list of the instances with the newly attached fields
     
-    batch_select(Entry, Entry.objects.all(), 'tags', 'all_tags')
+    batch_select(Entry, Entry.objects.all(), 'tags_all', 'tags')
     
-    would return a list of Entry objects with 'all_tags' fields
+    would return a list of Entry objects with 'tags_all' fields
     containing the tags for that Entry
     
     filter is a function that can be used alter the extra-query - it 
