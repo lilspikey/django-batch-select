@@ -160,6 +160,12 @@ Whereas the following would exclude tags containing "blue" and order by name:
     Entry.objects.batch_select(tags_not_containing_blue=batch)
 
 
+Compatibility
+=============
+
+Django batch select should work with Django 1.1-1.3 at least.
+
+
 TODOs and BUGS
 ==============
 See: http://github.com/lilspikey/django-batch-select/issues
