@@ -10,10 +10,19 @@ def _not_exists(fieldname):
     raise FieldDoesNotExist('"%s" is not a ManyToManyField or a reverse ForeignKey relationship' % fieldname)
 
 def _check_field_exists(model, fieldname):
-    field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
+    try:
+        field_object, model, direct, m2m = model._meta.get_field_by_name(fieldname)
+    except FieldDoesNotExist:
+        # might be after reverse foreign key
+        # which by default don't have the name we expect
+        if fieldname.endswith('_set'):
+            return _check_field_exists(model, fieldname[:-len('_set')])
+        else:
+            raise
     if not m2m:
         if direct: # reverse foreign key relationship
             _not_exists(fieldname)
+    return fieldname
 
 def _id_attr(id_column):
     # mangle the id column name, so we can make sure
@@ -51,7 +60,7 @@ def batch_select(model, instances, target_field_name, fieldname, filter=None):
     dont want to change your model/manager.
     '''
     
-    _check_field_exists(model, fieldname)
+    fieldname = _check_field_exists(model, fieldname)
     
     instances = list(instances)
     ids = [instance.pk for instance in instances]

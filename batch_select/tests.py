@@ -4,7 +4,8 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
     from django.test import TransactionTestCase
     from django.db.models.fields import FieldDoesNotExist
     from batch_select.models import Tag, Entry, Section, Batch, Location,\
-                                    _select_related_instances, Country
+                                    _select_related_instances, Country,\
+                                    _check_field_exists
     from batch_select.replay import Replay
     from django import db
     from django.db.models import Count
@@ -233,6 +234,38 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             self.failUnlessEqual(set([entry1, entry2]), set(section1.entry_all))
             self.failUnlessEqual(set([]),               set(section2.entry_all))
             self.failUnlessEqual(set([entry3]),         set(section3.entry_all))
+        
+        def test___check_field_exists_full_field_name(self):
+            # make sure we can retrieve the "real" fieldname
+            # given the full fieldname for a reverse foreign key
+            # relationship
+            # e.g. give "entry_set" we should get "entry"
+            self.failUnlessEqual("entry", _check_field_exists(Section, "entry_set"))
+        
+        def test___check_field_exists_full_field_name_non_existant_field(self):
+            try:
+                _check_field_exists(Section, "qwerty_set")
+                self.fail('selected field that does not exist')
+            except FieldDoesNotExist:
+                pass
+        
+        def test_batch_select_one_to_many_with_children_full_field_name(self):
+            section1 = Section.objects.create(name='s1')
+            section2 = Section.objects.create(name='s2')
+            section3 = Section.objects.create(name='s3')
+
+            entry1 = Entry.objects.create(section=section1)
+            entry2 = Entry.objects.create(section=section1)
+            entry3 = Entry.objects.create(section=section3)
+
+            sections = Section.objects.batch_select('entry_set').order_by('id')
+            self.failUnlessEqual([section1, section2, section3], list(sections))
+
+            section1, section2, section3 = list(sections)
+
+            self.failUnlessEqual(set([entry1, entry2]), set(section1.entry_set_all))
+            self.failUnlessEqual(set([]),               set(section2.entry_set_all))
+            self.failUnlessEqual(set([entry3]),         set(section3.entry_set_all))
         
         @with_debug_queries
         def test_batch_select_one_to_many_with_children_minimal_queries(self):
