@@ -23,8 +23,7 @@ def _id_attr(id_column):
     return '__%s' % id_column.lower()
 
 def _select_related_instances(related_model, related_name, ids, db_table, id_column):
-    id__in_filter={ ('%s__in' % related_name): ids }
-
+    id__in_filter={ ('%s__pk__in' % related_name): ids }
     qn = connection.ops.quote_name
     select = { _id_attr(id_column): '%s.%s' % (qn(db_table), qn(id_column)) }
     related_instances = related_model._default_manager \

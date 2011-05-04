@@ -566,7 +566,7 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             would be difficult.
             """
             qn = db.connection.ops.quote_name
-            qs = _select_related_instances(Entry, 'id', [1],
+            qs = _select_related_instances(Entry, 'section', [1],
                                            'batch_select_entry', 'section_id')
             db.reset_queries()
             list(qs)
