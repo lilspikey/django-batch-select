@@ -111,7 +111,7 @@ By default the batch fields are inserted into fields named <name>_all, on each o
 
 Results in the Entry instances having fields called 'tags_all' containing the Tag objects associated with that Entry.
 
-If you want to give the field a different name just use a named parameter - in the same way as using the Aggregation_ API:
+If you want to give the field a different name just use a keyword argument - in the same way as using the Aggregation_ API:
 
 ::
 
@@ -119,7 +119,7 @@ If you want to give the field a different name just use a named parameter - in t
 
 Would means the Tag objects would be assigned to fields called 'selected_tags'.
 
-If you want to perform filtering of the related objects you will need to use a Batch object.  By doing this you can pass extra named parameters in the same way as when using the filter method of a QuerySet:
+If you want to perform filtering of the related objects you will need to use a Batch object.  By doing this you can pass extra keyword arguments in the same way as when using the filter method of a QuerySet:
 
 ::
     
@@ -129,7 +129,7 @@ If you want to perform filtering of the related objects you will need to use a B
 
 Would return Entry objects with fields called 'tags_containing_name' with only those Tags whose name contains 'blue'.
 
-In addition to filtering by names parameters you can also the following methods on a Batch object, with their effects being passed on to the underlying QuerySet_ object:
+In addition to filtering using keyword arguments, you can also call the following methods on a Batch object, with their effects being passed on to the underlying QuerySet_ object:
 
 * filter_
 * exclude_
