@@ -100,6 +100,25 @@ Re-running that same last for loop without using batch_select generate three que
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 1
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 2
 
+This also works with reverse foreign keys.  So for example we can get this entries that belong to each section::
+
+    >>> section1 = Section.objects.create(name='section1')
+    >>> section2 = Section.objects.create(name='section2')
+    >>> Entry.objects.create(section=section1)
+    >>> Entry.objects.create(section=section1)
+    >>> Entry.objects.create(section=section2)
+    >>> db.reset_queries()
+    >>> Section.objects.batch_select('entry_set')
+    [<Section: Section object>, <Section: Section object>]
+    >>> show_queries()
+    SELECT "batch_select_section"."id", "batch_select_section"."name" FROM "batch_select_section" LIMIT 21
+    SELECT ("batch_select_entry"."section_id") AS "__section_id", "batch_select_entry"."id", "batch_select_entry"."title", "batch_select_entry"."section_id", "batch_select_entry"."location_id" FROM "batch_select_entry" WHERE "batch_select_entry"."section_id" IN (1, 2)
+
+Each section object in that query will have an entry_set_all field containing the relevant entries.
+
+You need to pass batch_select the "related name" of the foreign key, in this case "entry_set". NB by default the related name for a foreign key does not actually include the _set suffix, so you can use just "entry" in this case. I have made sure that the _set suffix version also works to try and keep the API simpler.
+
+
 More Advanced Usage
 =========================
 
