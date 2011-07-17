@@ -1,53 +1,55 @@
-====================
+===================
 Django Batch Select
-====================
+===================
 
-The idea of Django Batch Select is to provide an equivalent to Django's select_related_ functionality.  As of such it's another handy tool for avoiding the "n+1 query problem".
+The idea of Django Batch Select is to provide an equivalent to
+Django's select_related_ functionality.  As of such it's another handy
+tool for avoiding the "n+1 query problem".
 
-select_related_ is handy for minimizing the number of queries that need to be made in certain situations.  However it is only usual for pre-selecting ForeignKey_ relations.
+select_related_ is handy for minimizing the number of queries that need
+to be made in certain situations.  However it is only usual for
+pre-selecting ForeignKey_ relations.
 
-batch_select is handy for pre-selecting ManyToManyField_ relations and reverse ForeignKey_ relations.
+batch_select is handy for pre-selecting ManyToManyField_ relations and
+reverse ForeignKey_ relations.
 
-It works by performing a single extra SQL query after a QuerySet_ has been evaluated to stitch in the the extra fields asked for.  This requires the addition of a custom Manager_, which in turn returns a custom QuerySet_ with extra methods attached.
+It works by performing a single extra SQL query after a QuerySet_ has
+been evaluated to stitch in the the extra fields asked for.  This requires
+the addition of a custom Manager_, which in turn returns a custom QuerySet_
+with extra methods attached.
 
 Example Usage
 =============
 
-Assuming we have models defined as the following:
-
-::
+Assuming we have models defined as the following::
 
     from batch_select.models import BatchManager
-    
+
     class Tag(models.Model):
         name = models.CharField(max_length=32)
 
     class Section(models.Model):
         name = models.CharField(max_length=32)
-    
+
         objects = BatchManager()
 
     class Entry(models.Model):
         title = models.CharField(max_length=255)
         section = models.ForeignKey(Section, blank=True, null=True)
         tags = models.ManyToManyField(Tag)
-    
+
         objects = BatchManager()
 
-I'll also define a helper function to show the SQL queries generated:
-
-::
+I'll also define a helper function to show the SQL queries generated::
 
     from django import db
-    
+
     def show_queries():
         for query in db.connection.queries:
             print query["sql"]
         db.reset_queries()
 
-Here are a few example (with generated sql queries):
-
-::
+Here are a few example (with generated sql queries)::
 
     >>> Entry.objects.batch_select('tags').all()
     []
@@ -83,10 +85,9 @@ Here are a few example (with generated sql queries):
     >>> show_queries()
     SELECT "batch_select_entry"."id", "batch_select_entry"."title", "batch_select_entry"."section_id" FROM "batch_select_entry"
     SELECT (`batch_select_entry_tags`.`entry_id`) AS "entry_id", "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags".entry_id IN (1, 2)
-    
-Re-running that same last for loop without using batch_select generate three queries instead of two (n+1 queries):
 
-::
+Re-running that same last for loop without using batch_select
+generate three queries instead of two (n+1 queries)::
 
     >>> entries = Entry.objects.all()
     >>> for entry in entries:
@@ -94,13 +95,14 @@ Re-running that same last for loop without using batch_select generate three que
     ....
     [<Tag: Tag object>]
     []
-                                                                                                                          
+
     >>> show_queries()
     SELECT "batch_select_entry"."id", "batch_select_entry"."title", "batch_select_entry"."section_id" FROM "batch_select_entry"
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 1
     SELECT "batch_select_tag"."id", "batch_select_tag"."name" FROM "batch_select_tag" INNER JOIN "batch_select_entry_tags" ON ("batch_select_tag"."id" = "batch_select_entry_tags"."tag_id") WHERE "batch_select_entry_tags"."entry_id" = 2
 
-This also works with reverse foreign keys.  So for example we can get this entries that belong to each section::
+This also works with reverse foreign keys. So for example we can get
+this entries that belong to each section::
 
     >>> section1 = Section.objects.create(name='section1')
     >>> section2 = Section.objects.create(name='section2')
@@ -114,41 +116,49 @@ This also works with reverse foreign keys.  So for example we can get this entri
     SELECT "batch_select_section"."id", "batch_select_section"."name" FROM "batch_select_section" LIMIT 21
     SELECT ("batch_select_entry"."section_id") AS "__section_id", "batch_select_entry"."id", "batch_select_entry"."title", "batch_select_entry"."section_id", "batch_select_entry"."location_id" FROM "batch_select_entry" WHERE "batch_select_entry"."section_id" IN (1, 2)
 
-Each section object in that query will have an entry_set_all field containing the relevant entries.
+Each section object in that query will have an entry_set_all field
+containing the relevant entries.
 
-You need to pass batch_select the "related name" of the foreign key, in this case "entry_set". NB by default the related name for a foreign key does not actually include the _set suffix, so you can use just "entry" in this case. I have made sure that the _set suffix version also works to try and keep the API simpler.
+You need to pass batch_select the "related name" of the foreign key,
+in this case "entry_set". NB by default the related name for a foreign
+key does not actually include the _set suffix, so you can use just "entry"
+in this case. I have made sure that the _set suffix version also works to
+try and keep the API simpler.
 
 
 More Advanced Usage
 =========================
 
-By default the batch fields are inserted into fields named <name>_all, on each object.  So:
-
-::
+By default the batch fields are inserted into fields named ``<name>_all``,
+on each object.  So::
 
     Entry.objects.batch_select('tags').all()
 
-Results in the Entry instances having fields called 'tags_all' containing the Tag objects associated with that Entry.
+results in the Entry instances having fields called ``'tags_all'``
+containing the Tag objects associated with that Entry.
 
-If you want to give the field a different name just use a keyword argument - in the same way as using the Aggregation_ API:
-
-::
+If you want to give the field a different name just use a keyword
+argument - in the same way as using the Aggregation_ API::
 
     Entry.objects.batch_select(selected_tags='tags').all()
 
-Would means the Tag objects would be assigned to fields called 'selected_tags'.
+Would means the Tag objects would be assigned to fields called
+``'selected_tags'``.
 
-If you want to perform filtering of the related objects you will need to use a Batch object.  By doing this you can pass extra keyword arguments in the same way as when using the filter method of a QuerySet:
+If you want to perform filtering of the related objects you will need to
+use a Batch object. By doing this you can pass extra keyword arguments
+in the same way as when using the filter method of a QuerySet::
 
-::
-    
     from batch_select.models import Batch
-    
+
     Entry.objects.batch_select(tags_containing_blue=Batch('tags', name__contains='blue'))
 
-Would return Entry objects with fields called 'tags_containing_name' with only those Tags whose name contains 'blue'.
+Would return Entry objects with fields called 'tags_containing_name' with
+only those Tags whose name contains 'blue'.
 
-In addition to filtering using keyword arguments, you can also call the following methods on a Batch object, with their effects being passed on to the underlying QuerySet_ object:
+In addition to filtering using keyword arguments, you can also call the
+following methods on a Batch object, with their effects being passed on
+to the underlying QuerySet_ object:
 
 * filter_
 * exclude_
@@ -160,21 +170,19 @@ In addition to filtering using keyword arguments, you can also call the followin
 * defer_
 * only_
 
-(Note that distinct(), values() etc are not included as they would have side-effects on how the extra query is associated with the original query)
-So for example to achieve the same effect as the filter above you could do the following:
+(Note that distinct(), values() etc are not included as they would have
+side-effects on how the extra query is associated with the original query)
+So for example to achieve the same effect as the filter above you could
+do the following::
 
-::
-    
     from batch_select.models import Batch
-    
+
     Entry.objects.batch_select(tags_containing_blue=Batch('tags').filter(name__contains='blue'))
 
-Whereas the following would exclude tags containing "blue" and order by name:
-
-::
+Whereas the following would exclude tags containing "blue" and order by name::
 
     from batch_select.models import Batch
-    
+
     batch = Batch('tags').exclude(name__contains='blue').order_by('name')
     Entry.objects.batch_select(tags_not_containing_blue=batch)
 
@@ -187,6 +195,7 @@ Django batch select should work with Django 1.1-1.3 at least.
 
 TODOs and BUGS
 ==============
+
 See: http://github.com/lilspikey/django-batch-select/issues
 
 .. _select_related: http://docs.djangoproject.com/en/dev/ref/models/querysets/#id4
