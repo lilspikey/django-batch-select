@@ -531,6 +531,30 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
             uk = countries[0]
             self.failUnlessEqual(set([brighton, hove]), set(uk.locations_all))
 
+        @with_debug_queries
+        def test_batch_nested(self):
+            section1 = Section.objects.create(name='s1')
+
+            entry1 = Entry.objects.create(section=section1)
+            entry2 = Entry.objects.create(section=section1)
+
+            tag1, tag2, tag3 = _create_tags('tag1', 'tag2', 'tag3')
+
+            entry1.tags.add(tag1, tag3)
+            entry2.tags.add(tag2)
+
+            db.reset_queries()
+
+            entry_batch = Batch('entry_set').batch_select('tags')
+            sections = Section.objects.batch_select(entries=entry_batch)
+            sections = list(sections)
+            section1 = sections[0]
+            section1_tags = [tag for entry in section1.entries
+                             for tag in entry.tags_all]
+
+            self.failUnlessEqual(set([tag1, tag2, tag3]), set(section1_tags))
+            self.failUnlessEqual(3, len(db.connection.queries))
+
 
     class ReplayTestCase(unittest.TestCase):
         

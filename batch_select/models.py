@@ -110,7 +110,7 @@ class Batch(Replay):
     # functions on QuerySet that we can invoke via this batch object
     __replayable__ = ('filter', 'exclude', 'annotate', 
                       'order_by', 'reverse', 'select_related',
-                      'extra', 'defer', 'only')
+                      'extra', 'defer', 'only', 'batch_select')
     
     def __init__(self, m2m_fieldname, **filter):
         super(Batch,self).__init__()
@@ -203,4 +203,4 @@ if getattr(settings, 'TESTING_BATCH_SELECT', False):
         locations = models.ManyToManyField(Location)
         
         objects = BatchManager()
-        
+

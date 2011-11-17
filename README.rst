@@ -169,6 +169,7 @@ to the underlying QuerySet_ object:
 * extra_
 * defer_
 * only_
+* batch_select
 
 (Note that distinct(), values() etc are not included as they would have
 side-effects on how the extra query is associated with the original query)
